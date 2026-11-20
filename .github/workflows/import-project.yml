@@ -1,0 +1,26 @@
+name: Import queue project history
+on:
+  push:
+    branches: [Main]
+    paths: [queue-project.bundle, revision-map.json]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Restore verified branches
+        shell: bash
+        run: |
+          test -f queue-project.bundle
+          test -f revision-map.json
+          git bundle verify queue-project.bundle
+          git fetch ./queue-project.bundle 'refs/publish/*:refs/import/*'
+          cp revision-map.json "$RUNNER_TEMP/queue-revision-map.json"
+          git switch --detach refs/import/main
+          cp "$RUNNER_TEMP/queue-revision-map.json" AGENT_LOG/published-revisions.json
+          git add AGENT_LOG/published-revisions.json
+          git -c user.name='RicityZ' -c user.email='RicityZ@users.noreply.github.com' commit -m 'Map local agent evidence to published Git revisions'
+          git push origin HEAD:refs/heads/main refs/import/agent/review:refs/heads/agent/review refs/import/agent/strategy:refs/heads/agent/strategy refs/import/agent/verification:refs/heads/agent/verification
